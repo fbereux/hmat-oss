@@ -26,7 +26,7 @@
 #include "cluster_tree.hpp"
 #include "common/context.hpp"
 #include "disable_threading.hpp"
-
+#include "serialization.hpp"
 #include <cstring>
 
 namespace hmat {
@@ -69,6 +69,11 @@ HMatInterface<T, E>::HMatInterface(HMatrix<T>* h, hmat_factorization_t factoriza
     engine_(h), factorizationType(factorization)
 {}
 
+static void io_write(void * buffer, size_t size, void * user_data) {
+    size_t r = fwrite(buffer, size, 1, (FILE*)user_data);
+    HMAT_ASSERT(r == 1);
+}
+
 template<typename T, template <typename> class E>
 void HMatInterface<T, E>::assemble(Assembly<T>& f, SymmetryFlag sym, bool,
                                    hmat_progress_t * progress, bool ownAssembly) {
@@ -76,6 +81,11 @@ void HMatInterface<T, E>::assemble(Assembly<T>& f, SymmetryFlag sym, bool,
   DECLARE_CONTEXT;
   engine_.progress(progress);
   engine_.assembly(f, sym, ownAssembly);
+  FILE * file = fopen("assembled.hmat", "wb");
+  HMAT_ASSERT(file != NULL);
+  MatrixStructMarshaller<T>(io_write, file).write(engine_.hmat, factorizationType);
+  fclose(file);
+  exit(0);
 }
 
 template<typename T, template <typename> class E>
