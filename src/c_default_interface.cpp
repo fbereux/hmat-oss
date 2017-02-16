@@ -157,6 +157,12 @@ hmat_admissibility_t* hmat_create_admissibility_standard(double eta)
     return static_cast<hmat_admissibility_t*>((void*) new hmat::StandardAdmissibilityCondition(eta));
 }
 
+hmat_admissibility_t* hmat_create_admissibility_small_block(hmat_admissibility_param_t * p)
+{
+    return static_cast<hmat_admissibility_t*>((void*) new hmat::SmallBlockAdmissibilityCondition(
+         p->max_svd_elements, p->max_aca_elements));
+}
+
 void hmat_delete_admissibility(hmat_admissibility_t * cond) {
     delete static_cast<AdmissibilityCondition*>((void*)cond);
 }

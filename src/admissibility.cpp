@@ -130,4 +130,23 @@ void StandardAdmissibilityCondition::setRatio(double ratio) {
 
 StandardAdmissibilityCondition StandardAdmissibilityCondition::DEFAULT_ADMISSIBLITY = StandardAdmissibilityCondition(2.0);
 
+SmallBlockAdmissibilityCondition::SmallBlockAdmissibilityCondition(
+    size_t maxElementsPerBlock, size_t maxElementsPerBlockRows) :
+    StandardAdmissibilityCondition(0.0, 0.0, maxElementsPerBlock, maxElementsPerBlockRows)
+{
+  // Nothing to do
+}
+
+bool
+SmallBlockAdmissibilityCondition::isLowRank(const ClusterTree& rows, const ClusterTree& cols)
+{
+    return true;
+}
+
+std::string
+SmallBlockAdmissibilityCondition::str() const
+{
+  return "Small block admissibility condition";
+}
+
 }  // end namespace hmat

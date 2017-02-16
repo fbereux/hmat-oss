@@ -266,6 +266,9 @@ hmat_admissibility_t* hmat_create_admissibility(hmat_admissibility_param_t *);
 /* Create a standard (Hackbusch) admissibility condition, with a given eta */
 hmat_admissibility_t* hmat_create_admissibility_standard(double eta);
 
+/* Create an admissibility condition to compress all small enough blocks */
+hmat_admissibility_t* hmat_create_admissibility_small_block(hmat_admissibility_param_t *);
+
 /* Delete admissibility condition */
 void hmat_delete_admissibility(hmat_admissibility_t * cond);
 

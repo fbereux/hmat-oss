@@ -112,5 +112,17 @@ private:
   size_t maxElementsPerBlockAca_;
 };
 
+/**
+ * @brief Admissibility condition for right-hand sides
+ */
+class SmallBlockAdmissibilityCondition : public StandardAdmissibilityCondition
+{
+public:
+  SmallBlockAdmissibilityCondition(size_t maxElementsPerBlock = 20000000,
+                                   size_t maxElementsPerBlockAca = 0);
+  bool isLowRank(const ClusterTree& rows, const ClusterTree& cols);
+  std::string str() const;
+};
+
 } //  end namespace hmat
 #endif
