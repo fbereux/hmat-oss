@@ -196,21 +196,28 @@ namespace hmat {
     //  L21 * X11 + L22 * X21 = b21 (forward substitution of L22*X21=b21-L21*X11)
     //  L21 * X12 + L22 * X22 = b22 (forward substitution of L22*X22=b22-L21*X12)
     // X and b are not necessarily square
+    HMAT_ASSERT_MSG(me()->nrChildRow()==me()->nrChildCol(),
+                    "RecursionMatrix<T, Mat>::recursiveSolveLowerTriangularLeft: case not allowed "
+                    "Nr Child A[%d, %d] Dimensions A=%s ",
+                    me()->nrChildRow(), me()->nrChildCol(), me()->description().c_str());
 
     // First we handle the general case, where dimensions (in terms of number of children) are compatible
     if (me()->nrChildCol() == b->nrChildRow()) {
 
-      for (int k=0 ; k<b->nrChildCol() ; k++) // loop on the column of b
-        for (int i=0 ; i<me()->nrChildRow() ; i++) {
-          // Update b[i,k] with the contribution of the solutions already computed b[j,k] j<i
+      for (int k=0 ; k<b->nrChildRow() ; k++) {
+        // Solve the i-th diagonal system
+        for (int i=0 ; i<me()->nrChildCol() ; i++)
+          if (b->get(k, i))
+            me()->get(k,k)->solveLowerTriangularLeft(b->get(k,i), unitriangular, mainSolve);
+        for (int i=k+1 ; i<me()->nrChildRow() ; i++) {
+          // Update b[i,j] with the contribution of the solutions already computed b[k,j] k<i
           if (!b->get(i, k)) continue;
-          for (int j=0 ; j<i ; j++)
-            if (me()->get(i,j) && b->get(j,k))
-              b->get(i, k)->gemm('N', 'N', Constants<T>::mone, me()->get(i, j), b->get(j,k),
+          for (int j=0 ; j<me()->nrChildCol() ; j++)
+            if (me()->get(i,k) && b->get(k,j))
+              b->get(i, j)->gemm('N', 'N', Constants<T>::mone, me()->get(i, k), b->get(k,j),
 		Constants<T>::pone, mainSolve);
-          // Solve the i-th diagonal system
-          me()->get(i, i)->solveLowerTriangularLeft(b->get(i,k), unitriangular, mainSolve);
         }
+      }
 
     } else if (me()->nrChildCol()>1 && b->nrChildRow()==1 && b->nrChildCol()>1) {
       // Then we handle the specific case where me() is divided in columns, and b is not divided in rows: we recurse on b's children only
