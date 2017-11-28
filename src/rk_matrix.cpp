@@ -43,13 +43,9 @@ int RkApproximationControl::findK(double *sigma, int maxK, double epsilon) {
     newK = std::min(newK, maxK);
   } else {
     assert(epsilon >= 0.);
-    double sumSingularValues = 0.;
-    for (int i = 0; i < maxK; i++) {
-      sumSingularValues += sigma[i];
-    }
     int i = 0;
     for (i = 0; i < maxK; i++) {
-      if (sigma[i] <= epsilon * sumSingularValues){
+      if (sigma[i] <= epsilon * sigma[0]){
         break;
       }
     }
