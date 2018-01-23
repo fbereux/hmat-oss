@@ -417,6 +417,21 @@ void FullMatrix<T>::solveUpperTriangularRight(ScalarArray<T>* x, bool unitriangu
 }
 
 template<typename T>
+void FullMatrix<T>::solveUpperTriangularRightH(ScalarArray<T>* x, bool unitriangular, bool lowerStored) const {
+  // Void matrix
+  if (x->rows == 0 || x->cols == 0) return;
+
+  {
+    const size_t _m = rows(), _n = x->cols;
+    const size_t adds = _n * _m * (_m - 1) / 2;
+    const size_t muls = _n * _m * (_m + 1) / 2;
+    increment_flops(Multipliers<T>::add * adds + Multipliers<T>::mul * muls);
+  }
+  proxy_cblas::trsm('R', lowerStored ? 'L' : 'U', lowerStored ? Constants<T>::transconj : 'N', unitriangular ? 'U' : 'N',
+    x->rows, x->cols, Constants<T>::pone, data.m, data.lda, x->m, x->lda);
+}
+
+template<typename T>
 void FullMatrix<T>::solveUpperTriangularLeft(ScalarArray<T>* x, bool unitriangular, bool lowerStored) const {
   // Void matrix
   if (x->rows == 0 || x->cols == 0) return;

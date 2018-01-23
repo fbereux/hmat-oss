@@ -395,16 +395,16 @@ namespace hmat {
                     me()->nrChildRow(), me()->nrChildCol(), me()->description().c_str());
 
     for (int k=0 ; k<me()->nrChildRow() ; k++) {
-      // Hkk <- Lkk * tLkk
+      // Hkk <- Lkk * Lkk^h
       me()->get(k,k)->cholDecomposition(progress);
-      // Solve the rest of column k: solve Lik tLkk = Hik and get Lik
+      // Solve the rest of column k: solve Lik Lkk^h = Hik and get Lik
       for (int i=k+1 ; i<me()->nrChildRow() ; i++)
-        me()->get(k,k)->solveUpperTriangularRight(me()->get(i,k), false, true);
+        me()->get(k,k)->solveUpperTriangularRightH(me()->get(i,k), false, true);
       // update the rest of the matrix [k+1, .., n]x[k+1, .., n] (below diag)
       for (int i=k+1 ; i<me()->nrChildRow() ; i++)
         for (int j=k+1 ; j<=i ; j++)
-          // Hij <- Hij - Lik tLjk
-          me()->get(i,j)->gemm('N', 'T', Constants<T>::mone, me()->get(i,k), me()->get(j,k), Constants<T>::pone);
+          // Hij <- Hij - Lik Ljk^h
+          me()->get(i,j)->gemm('N', Constants<T>::transconj, Constants<T>::mone, me()->get(i,k), me()->get(j,k), Constants<T>::pone);
     }
   }
 

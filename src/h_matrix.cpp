@@ -1784,6 +1784,64 @@ void HMatrix<T>::solveUpperTriangularRight(HMatrix<T>* b, bool unitriangular, bo
   }
 }
 
+template<typename T>
+void HMatrix<T>::solveUpperTriangularRightH(HMatrix<T>* b, bool unitriangular, bool lowerStored) const {
+  DECLARE_CONTEXT;
+  if (rows()->size() == 0 || cols()->size() == 0) return;
+  // The recursion one (simple case)
+  if (!this->isLeaf() && !b->isLeaf()) {
+    this->recursiveSolveUpperTriangularRightH(b, unitriangular, lowerStored);
+  } else {
+    // if B is a leaf, the resolve is done by row
+    if (b->isLeaf()) {
+      if (b->isFullMatrix()) {
+        b->full()->transpose();
+        this->solveUpperTriangularRightH(b->full(), unitriangular, lowerStored);
+        b->full()->transpose();
+      } else if(!b->isNull() && b->isRkMatrix()){
+        // Xa Xb^t U = Ba Bb^t
+        //   - Xa = Ba
+        //   - Xb^t U = Bb^t
+        // Xb is stored without been transposed
+        // it become again a resolution by column of Bb
+        HMatrix<T> * tmp;
+        if(*rows() == *b->cols())
+            tmp = b;
+        else
+            tmp = b->subset(b->rows(), this->rows());
+        this->solveUpperTriangularRightH(tmp->rk()->b, unitriangular, lowerStored);
+        if(tmp != b)
+            delete tmp;
+      } else {
+        // b is a null block so nothing to do
+      }
+    } else {
+      // B is not a leaf, then so is L
+      assert(this->isLeaf());
+      assert(isFullMatrix());
+      // Evaluate B, solve by column and restore all in the matrix
+      // TODO: check if it's not too bad
+      FullMatrix<T>* bFull = new FullMatrix<T>(b->rows(), b->cols());
+      b->evalPart(bFull, b->rows(), b->cols());
+      bFull->transpose();
+      this->solveUpperTriangularRightH(bFull, unitriangular, lowerStored);
+      bFull->transpose();
+      // int bRows = b->rows()->size();
+      // int bCols = b->cols()->size();
+      // Vector<T> bRow(bCols);
+      // for (int row = 0; row < bRows; row++) {
+      //   blasCopy<T>(bCols, bFull->data.m + row, bRows, bRow.v, 1);
+      //   FullMatrix<T> tmp(bRow.v, bRow.rows, 1);
+      //   this->solveUpperTriangularRight(&tmp);
+      //   blasCopy<T>(bCols, bRow.v, 1, bFull->data.m + row, bRows);      // }
+      // }
+      b->clear();
+      b->axpy(Constants<T>::pone, bFull);
+      delete bFull;
+    }
+  }
+}
+
 /* Resolve U.X=B, solution saved in B, with B Hmat
    Only called by luDecomposition
  */
@@ -1896,6 +1954,48 @@ void HMatrix<T>::solveUpperTriangularRight(ScalarArray<T>* b, bool unitriangular
 template<typename T>
 void HMatrix<T>::solveUpperTriangularRight(FullMatrix<T>* b, bool unitriangular, bool lowerStored) const {
   solveUpperTriangularRight(&b->data, unitriangular, lowerStored);
+}
+
+// FIXME : TODO
+template<typename T>
+void HMatrix<T>::solveUpperTriangularRightH(ScalarArray<T>* b, bool unitriangular, bool lowerStored) const {
+  DECLARE_CONTEXT;
+  assert(*rows() == *cols());
+  if (rows()->size() == 0 || cols()->size() == 0) return;
+  // B is supposed given in form of a row vector, but transposed
+  // so we can deal it with a subset as usual.
+  if (this->isLeaf()) {
+    assert(this->isFullMatrix());
+    ScalarArray<T>* bCopy = b->copyAndTranspose();
+    full()->solveUpperTriangularRight(bCopy, unitriangular, lowerStored);
+    bCopy->transpose();
+    b->copyMatrixAtOffset(bCopy, 0, 0);
+    delete bCopy;
+  } else {
+
+    int offset(0);
+    vector<ScalarArray<T> > sub;
+    for (int i=0 ; i<nrChildRow() ; i++) {
+      // Create sub[i] = a FullMatrix (without copy of data) for the lines in front of the i-th matrix block
+      sub.push_back(b->rowsSubset(offset, get(i, i)->rows()->size()));
+      offset += get(i, i)->rows()->size();
+    }
+    for (int i=0 ; i<nrChildRow() ; i++) {
+      // Update sub[i] with the contribution of the solutions already computed sub[j]
+      for (int j=0 ; j<i ; j++) {
+        const HMatrix<T>* u_ji = (lowerStored ? get(i, j) : get(j, i));
+        if (u_ji)
+          u_ji->gemv(lowerStored ? 'N' : 'T', Constants<T>::mone, &sub[j], Constants<T>::pone, &sub[i]);
+      }
+      // Solve the i-th diagonal system
+      get(i, i)->solveUpperTriangularRight(&sub[i], unitriangular, lowerStored);
+    }
+  }
+}
+
+template<typename T>
+void HMatrix<T>::solveUpperTriangularRightH(FullMatrix<T>* b, bool unitriangular, bool lowerStored) const {
+  solveUpperTriangularRightH(&b->data, unitriangular, lowerStored);
 }
 
 template<typename T>
