@@ -53,4 +53,8 @@ template<> const int Constants<D_t>::code = 1;
 template<> const int Constants<C_t>::code = 2;
 template<> const int Constants<Z_t>::code = 3;
 
+template<> const char Constants<S_t>::transconj = 'T';
+template<> const char Constants<D_t>::transconj = 'T';
+template<> const char Constants<C_t>::transconj = 'C';
+template<> const char Constants<Z_t>::transconj = 'C';
 }  // end namespace hmat

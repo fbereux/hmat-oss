@@ -363,6 +363,7 @@ public:
    */
   void ldltDecomposition(hmat_progress_t * progress);
   void lltDecomposition(hmat_progress_t * progress);
+  void cholDecomposition(hmat_progress_t * progress);
 
   /** This <- This + alpha * b
 
@@ -457,6 +458,7 @@ public:
     \param b la matrice B en entree, X en sortie
    */
   void solveUpperTriangularLeft(HMatrix<T>* b, bool unitriangular, bool lowerStored, MainOp=MainOp_Other) const;
+  void solveUpperTriangularLeftH(HMatrix<T>* b, bool unitriangular, bool lowerStored, MainOp=MainOp_Other) const;
   /*! Resolution de x U = b, avec U = this, et x = b.
 
     \warning b est un vecteur ligne et non colonne.
@@ -466,15 +468,17 @@ public:
   void solveUpperTriangularRight(ScalarArray<T>* b, bool unitriangular, bool lowerStored) const;
   void solveUpperTriangularRight(FullMatrix<T>* b, bool unitriangular, bool lowerStored) const;
   /*! Resolution de U x = b, avec U = this, et x = b.
-    U peut etre en fait L^T ou L est une matrice stockee inferieurement
+    U peut etre en fait L^T (ou bien L^H) ou L est une matrice stockee inferieurement
     en precisant lowerStored = true
 
     \param b Le vecteur b en entree, x en sortie.
     \param indice les indices portes par le vecteur
-    \param lowerStored indique le stockage de la matrice U ou L^T
+    \param lowerStored indique le stockage de la matrice U ou L^T (ou L^H)
   */
   void solveUpperTriangularLeft(ScalarArray<T>* b, bool unitriangular, bool lowerStored) const;
   void solveUpperTriangularLeft(FullMatrix<T>* b, bool unitriangular, bool lowerStored) const;
+  void solveUpperTriangularLeftH(ScalarArray<T>* b, bool unitriangular, bool lowerStored) const;
+  void solveUpperTriangularLeftH(FullMatrix<T>* b, bool unitriangular, bool lowerStored) const;
   /*! Solve D x = b, in place with D a diagonal matrix.
 
      \param b Input: B, Output: X
@@ -504,6 +508,12 @@ public:
    */
   void solveLlt(ScalarArray<T>* b) const ;
   void solveLlt(FullMatrix<T>* b) const ;
+  /*! Resolution de This * x = b.
+
+    \warning This doit etre factorisee avec \a HMatrix::cholDecomposition() avant.
+   */
+  void solveChol(ScalarArray<T>* b) const ;
+  void solveChol(FullMatrix<T>* b) const ;
   /*! Triggers an assertion if the HMatrix contains any NaN.
    */
   void checkNan() const;

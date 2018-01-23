@@ -136,6 +136,9 @@ void DefaultEngine<T>::factorization(hmat_factorization_t t) {
   case hmat_factorization_llt:
       hmat->lltDecomposition(progress_);
       break;
+  case hmat_factorization_chol:
+      hmat->cholDecomposition(progress_);
+      break;
   default:
       HMAT_ASSERT(false);
   }
@@ -185,6 +188,9 @@ void DefaultEngine<T>::solve(ScalarArray<T>& b, hmat_factorization_t t) const {
       break;
   case hmat_factorization_llt:
       hmat->solveLlt(&b);
+      break;
+  case hmat_factorization_chol:
+      hmat->solveChol(&b);
       break;
   default:
      // not supported

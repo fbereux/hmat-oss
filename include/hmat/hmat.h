@@ -76,7 +76,8 @@ typedef enum {
     hmat_factorization_none = -1,
     hmat_factorization_lu,
     hmat_factorization_ldlt,
-    hmat_factorization_llt
+    hmat_factorization_llt,
+    hmat_factorization_chol
 } hmat_factorization_t;
 
 /* -1 seems to be a good portable alternative to SIZE_T_MAX (=18446744073709551615 on linux 64 bits) */

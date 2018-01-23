@@ -47,7 +47,9 @@ namespace hmat {
     void recursiveLuDecomposition(hmat_progress_t * progress) ;
     void recursiveInverseNosym() ;
     void recursiveLltDecomposition(hmat_progress_t * progress) ;
+    void recursiveCholDecomposition(hmat_progress_t * progress) ;
     void recursiveSolveUpperTriangularLeft(Mat* b, bool unitriangular, bool lowerStored, MainOp=MainOp_Other) const;
+    void recursiveSolveUpperTriangularLeftH(Mat* b, bool unitriangular, bool lowerStored, MainOp=MainOp_Other) const;
     void transposeMeta();
 
     // https://en.wikipedia.org/wiki/Curiously_recurring_template_pattern

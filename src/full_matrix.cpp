@@ -326,6 +326,33 @@ template<typename T> void FullMatrix<T>::lltDecomposition() {
   assert(!isTriUpper());
 }
 
+template<typename T> void FullMatrix<T>::cholDecomposition() {
+  // Void matrix
+  if (rows() == 0 || cols() == 0) return;
+  assert(this->rows() == this->cols()); // We expect a square matrix
+
+  int n = this->rows();
+  int info;
+  {
+    const size_t n2 = (size_t) n*n;
+    const size_t n3 = n2 * n;
+    const size_t muls = n3 / 6 + n2 / 2 + n / 3;
+    const size_t adds = n3 / 6 - n / 6;
+    increment_flops(Multipliers<T>::add * adds + Multipliers<T>::mul * muls);
+  }
+  info = proxy_lapack::potrf('L', rows(), data.m, data.lda);
+  HMAT_ASSERT(!info);
+
+  // FIXME : est-ce bien nécessaire de forcer la partie supérieure à 0 ?
+  for (int j = 0; j < n; j++) {
+    for(int i = 0; i < j; i++) {
+      get(i,j) = Constants<T>::zero;
+    }
+  }
+  triLower_ = true;
+  assert(!isTriUpper());
+}
+
 template<typename T>
 void FullMatrix<T>::luDecomposition() {
   // Void matrix
@@ -401,6 +428,21 @@ void FullMatrix<T>::solveUpperTriangularLeft(ScalarArray<T>* x, bool unitriangul
     increment_flops(Multipliers<T>::add * adds + Multipliers<T>::mul * muls);
   }
   proxy_cblas::trsm('L', lowerStored ? 'L' : 'U', lowerStored ? 'T' : 'N', unitriangular ? 'U' : 'N',
+    x->rows, x->cols, Constants<T>::pone, data.m, data.lda, x->m, x->lda);
+}
+
+template<typename T>
+void FullMatrix<T>::solveUpperTriangularLeftH(ScalarArray<T>* x, bool unitriangular, bool lowerStored) const {
+  // Void matrix
+  if (x->rows == 0 || x->cols == 0) return;
+
+  {
+    const size_t _m = rows(), _n = x->cols;
+    const size_t adds = _n * _m * (_n - 1) / 2;
+    const size_t muls = _n * _m * (_n + 1) / 2;
+    increment_flops(Multipliers<T>::add * adds + Multipliers<T>::mul * muls);
+  }
+  proxy_cblas::trsm('L', lowerStored ? 'L' : 'U', lowerStored ? Constants<T>::transconj : 'N', unitriangular ? 'U' : 'N',
     x->rows, x->cols, Constants<T>::pone, data.m, data.lda, x->m, x->lda);
 }
 

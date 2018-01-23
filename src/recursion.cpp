@@ -370,7 +370,97 @@ namespace hmat {
   }
 
   template<typename T, typename Mat>
+  void RecursionMatrix<T, Mat>::recursiveCholDecomposition(hmat_progress_t * progress) {
+
+    // |     |     |    |     |     |   |     |     |
+    // | h11 | h21 |    | L1  |     |   | L1h | Lh  |
+    // |-----|-----| =  |-----|-----| * |-----|-----|
+    // | h21 | h22 |    | L   | L2  |   |     | L2h |
+    // |     |     |    |     |     |   |     |     |
+    //
+    // h11 = L1 * L1h => L1 = h11.cholDecomposition
+    // h21 = L*L1h => L = L1h.solve(h21) => trsm R with L1 lower stored
+    // h22 = L*Lh + L2 * L2h => L2 = (h22 - L*Lh).cholDecomposition()
+    //
+    //
+    // for all i, j<=i : hij = sum_k Lik t{Ljk} k<=i,j
+    // The algorithm loops over 3 steps: for all k=1, 2, ..., n
+    //   - We factorize the element (k,k)
+    //   - We use "solve" to compute the rest of the column 'k'
+    //   - We update the rest of the matrix [k+1, .., n]x[k+1, .., n] (below diag)
+
+    HMAT_ASSERT_MSG(me()->nrChildRow()==me()->nrChildCol(),
+                    "RecursionMatrix<T, Mat>::recursiveCholDecomposition: case not allowed "
+                    "Nr Child A[%d, %d] Dimensions A=%s ",
+                    me()->nrChildRow(), me()->nrChildCol(), me()->description().c_str());
+
+    for (int k=0 ; k<me()->nrChildRow() ; k++) {
+      // Hkk <- Lkk * tLkk
+      me()->get(k,k)->cholDecomposition(progress);
+      // Solve the rest of column k: solve Lik tLkk = Hik and get Lik
+      for (int i=k+1 ; i<me()->nrChildRow() ; i++)
+        me()->get(k,k)->solveUpperTriangularRight(me()->get(i,k), false, true);
+      // update the rest of the matrix [k+1, .., n]x[k+1, .., n] (below diag)
+      for (int i=k+1 ; i<me()->nrChildRow() ; i++)
+        for (int j=k+1 ; j<=i ; j++)
+          // Hij <- Hij - Lik tLjk
+          me()->get(i,j)->gemm('N', 'T', Constants<T>::mone, me()->get(i,k), me()->get(j,k), Constants<T>::pone);
+    }
+  }
+
+  template<typename T, typename Mat>
   void RecursionMatrix<T, Mat>::recursiveSolveUpperTriangularLeft(Mat* b,
+     bool unitriangular, bool lowerStored, MainOp mainOp) const {
+
+    //  Backward substitution:
+    //  [ U11 | U12 ]    [ X11 | X12 ]   [ b11 | b12 ]
+    //  [ ----+---- ] *  [-----+-----] = [ ----+---- ]
+    //  [  0  | U22 ]    [ X21 | X22 ]   [ b21 | b22 ]
+    //
+    //  U22 * X21 = b21 (by recursive backward substitution)
+    //  U22 * X22 = b22 (by recursive backward substitution)
+    //  U11 * X12 + U12 * X22 = b12 (backward substitution of U11*X12=b12-U12*X22)
+    //  U11 * X11 + U12 * X21 = b11 (backward substitution of U11*X11=b11-U12*X21)
+    // X and b are not necessarily square
+
+    // First we handle the general case, where dimensions (in terms of number of children) are compatible
+    if (me()->nrChildCol() == b->nrChildRow()) {
+
+      for (int k=0 ; k<b->nrChildCol() ; k++) { // Loop on the column of the RHS
+        for (int i=me()->nrChildRow()-1 ; i>=0 ; i--) {
+          // Solve the i-th diagonal system
+          me()->get(i, i)->solveUpperTriangularLeft(b->get(i,k), unitriangular, lowerStored, mainOp);
+          // Update b[j,k] j<i with the contribution of the solutions just computed b[i,k]
+          for (int j=0 ; j<i ; j++) {
+            const Mat* u_ji = (lowerStored ? me()->get(i, j) : me()->get(j, i));
+            b->get(j,k)->gemm(lowerStored ? 'T' : 'N', 'N', Constants<T>::mone, u_ji, b->get(i,k),
+                              Constants<T>::pone, mainOp);
+          }
+        }
+      }
+
+    } else if (me()->nrChildCol()>1 && b->nrChildRow()==1 && b->nrChildCol()>1) {
+      // Then we handle the specific case where me() is divided in columns, and b is not divided in rows: we recurse on b's children only
+      //  [ U11 | U12 ]    [     |     ]   [     |     ]
+      //  [ ----+---- ] *  [ X11 | X12 ] = [ b11 | b12 ]
+      //  [  0  | U22 ]    [     |     ]   [     |     ]
+      for (int k=0 ; k<b->nrChildCol() ; k++) // loop on the column of b
+        me()->recursiveSolveUpperTriangularLeft(b->get(0,k), unitriangular, lowerStored);
+
+    } else {
+      HMAT_ASSERT_MSG(false, "RecursionMatrix<T, Mat>::recursiveSolveUpperTriangularLeft: case not yet handled "
+                             "Nr Child A[%d, %d] b[%d, %d] "
+                             "Dimensions A=%s b=%s",
+                      me()->nrChildRow(), me()->nrChildCol(), b->nrChildRow(), b->nrChildCol(),
+                      me()->description().c_str(), b->description().c_str());
+
+    }
+
+  }
+
+  // FIXME : ***** @ FAIRE *****
+  template<typename T, typename Mat>
+  void RecursionMatrix<T, Mat>::recursiveSolveUpperTriangularLeftH(Mat* b,
      bool unitriangular, bool lowerStored, MainOp mainOp) const {
 
     //  Backward substitution:

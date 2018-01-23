@@ -1821,6 +1821,42 @@ void HMatrix<T>::solveUpperTriangularLeft(HMatrix<T>* b, bool unitriangular, boo
   }
 }
 
+/* Resolve L^H.X=B, solution saved in B, with B Hmat
+ */
+template<typename T>
+void HMatrix<T>::solveUpperTriangularLeftH(HMatrix<T>* b, bool unitriangular, bool lowerStored, MainOp) const {
+  DECLARE_CONTEXT;
+  if (rows()->size() == 0 || cols()->size() == 0) return;
+  // At first, the recursion one (simple case)
+  if (!this->isLeaf() && !b->isLeaf()) {
+    this->recursiveSolveUpperTriangularLeftH(b, unitriangular, lowerStored);
+  } else {
+    // if B is a leaf, the resolve is done by column
+    if (b->isLeaf()) {
+      HMatrix * bSubset = b->subset(lowerStored ? this->rows() : this->cols(), b->cols());
+      if (bSubset->isFullMatrix()) {
+        this->solveUpperTriangularLeftH(bSubset->full(), unitriangular, lowerStored);
+      } else if(!bSubset->isNull()){
+        assert(b->isRkMatrix());
+        this->solveUpperTriangularLeftH(bSubset->rk()->a, unitriangular, lowerStored);
+      }
+      if(b != bSubset)
+          delete bSubset;
+    } else {
+      // B isn't a leaf, then so is L
+      assert(this->isLeaf());
+      // Evaluate B, solve by column, and restore in the matrix
+      // TODO: check if it's not too bad
+      FullMatrix<T>* bFull = new FullMatrix<T>(b->rows(), b->cols());
+      b->evalPart(bFull, b->rows(), b->cols());
+      this->solveUpperTriangularLeftH(bFull, unitriangular, lowerStored);
+      b->clear();
+      b->axpy(Constants<T>::pone, bFull);
+      delete bFull;
+    }
+  }
+}
+
 template<typename T>
 void HMatrix<T>::solveUpperTriangularRight(ScalarArray<T>* b, bool unitriangular, bool lowerStored) const {
   DECLARE_CONTEXT;
@@ -1898,6 +1934,42 @@ void HMatrix<T>::solveUpperTriangularLeft(FullMatrix<T>* b, bool unitriangular, 
   solveUpperTriangularLeft(&b->data, unitriangular, lowerStored);
 }
 
+template<typename T>
+void HMatrix<T>::solveUpperTriangularLeftH(ScalarArray<T>* b, bool unitriangular, bool lowerStored) const {
+  DECLARE_CONTEXT;
+  assert(*rows() == *cols());
+  assert(rows()->size() == b->rows || !lowerStored);
+  assert(cols()->size() == b->rows || lowerStored);
+  if (rows()->size() == 0 || cols()->size() == 0) return;
+  if (this->isLeaf()) {
+    full()->solveUpperTriangularLeftH(b, unitriangular, lowerStored);
+  } else {
+
+    int offset(0);
+    vector<ScalarArray<T> > sub;
+    for (int i=0 ; i<nrChildRow() ; i++) {
+      // Create sub[i] = a FullMatrix (without copy of data) for the lines in front of the i-th matrix block
+      sub.push_back(b->rowsSubset(offset, get(i, i)->cols()->size()));
+      offset += get(i, i)->cols()->size();
+    }
+    for (int i=nrChildRow()-1 ; i>=0 ; i--) {
+      // Solve the i-th diagonal system
+      get(i, i)->solveUpperTriangularLeftH(&sub[i], unitriangular, lowerStored);
+      // Update sub[j] j<i with the contribution of the solutions just computed sub[i]
+      for (int j=0 ; j<i ; j++) {
+        const HMatrix<T>* u_ji = (lowerStored ? get(i, j) : get(j, i));
+        if (u_ji)
+          u_ji->gemv(lowerStored ? Constants<T>::transconj : 'N', Constants<T>::mone, &sub[i], Constants<T>::pone, &sub[j]);
+      }
+    }
+  }
+}
+
+template<typename T>
+void HMatrix<T>::solveUpperTriangularLeftH(FullMatrix<T>* b, bool unitriangular, bool lowerStored) const {
+  solveUpperTriangularLeftH(&b->data, unitriangular, lowerStored);
+}
+
 template<typename T> void HMatrix<T>::lltDecomposition(hmat_progress_t * progress) {
 
     assertLower(this);
@@ -1912,6 +1984,25 @@ template<typename T> void HMatrix<T>::lltDecomposition(hmat_progress_t * progres
     } else {
         HMAT_ASSERT(isLower);
       this->recursiveLltDecomposition(progress);
+    }
+    isTriLower = true;
+    isLower = false;
+}
+
+template<typename T> void HMatrix<T>::cholDecomposition(hmat_progress_t * progress) {
+
+    assertLower(this);
+    if (isVoid()) {
+        // nothing to do
+    } else if(this->isLeaf()) {
+        full()->cholDecomposition();
+        if(progress != NULL) {
+            progress->current= rows()->offset() + rows()->size();
+            progress->update(progress);
+        }
+    } else {
+        HMAT_ASSERT(isLower);
+      this->recursiveCholDecomposition(progress);
     }
     isTriLower = true;
     isLower = false;
@@ -2166,9 +2257,9 @@ template<typename T> void HMatrix<T>::solve(
     DECLARE_CONTEXT;
     switch(factorizationType) {
     case hmat_factorization_lu:
-    /* Solve LX=B, result in B */
-    this->solveLowerTriangularLeft(b, true);
-    /* Solve UX=B, result in B */
+        /* Solve LX=B, result in B */
+        this->solveLowerTriangularLeft(b, true);
+        /* Solve UX=B, result in B */
         this->solveUpperTriangularLeft(b, false, false);
         break;
     case hmat_factorization_ldlt:
@@ -2184,6 +2275,12 @@ template<typename T> void HMatrix<T>::solve(
         this->solveLowerTriangularLeft(b, false);
         /* Solve L^tX=B, result in B */
         this->solveUpperTriangularLeft(b, false, true);
+        break;
+    case hmat_factorization_chol:
+        /* Solve LX=B, result in B */
+        this->solveLowerTriangularLeft(b, false);
+        /* Solve L^hX=B, result in B */
+        this->solveUpperTriangularLeftH(b, false, true);
         break;
     default:
         HMAT_ASSERT(false);
@@ -2252,6 +2349,22 @@ void HMatrix<T>::solveLlt(ScalarArray<T>* b) const {
 template<typename T>
 void HMatrix<T>::solveLlt(FullMatrix<T>* b) const {
   solveLlt(&b->data);
+}
+
+template<typename T>
+void HMatrix<T>::solveChol(ScalarArray<T>* b) const {
+  DECLARE_CONTEXT;
+  // L*L^T * X = B
+  // B <- solution of L * Y = B : Y = L^T * X
+  this->solveLowerTriangularLeft(b, false);
+
+  // B <- solution of L^H X = B :  the solution X we are looking for is stored in B
+  this->solveUpperTriangularLeftH(b, false, true);
+}
+
+template<typename T>
+void HMatrix<T>::solveChol(FullMatrix<T>* b) const {
+  solveChol(&b->data);
 }
 
 template<typename T>
