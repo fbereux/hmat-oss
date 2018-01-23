@@ -54,6 +54,7 @@ public:
   static const T pone;
   static const T mone;
   static const int code;
+  static const char transconj;
 };
 
 /** Multipliers used in the operations count.

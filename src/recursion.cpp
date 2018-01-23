@@ -458,7 +458,6 @@ namespace hmat {
 
   }
 
-  // FIXME : ***** @ FAIRE *****
   template<typename T, typename Mat>
   void RecursionMatrix<T, Mat>::recursiveSolveUpperTriangularLeftH(Mat* b,
      bool unitriangular, bool lowerStored, MainOp mainOp) const {
@@ -480,11 +479,12 @@ namespace hmat {
       for (int k=0 ; k<b->nrChildCol() ; k++) { // Loop on the column of the RHS
         for (int i=me()->nrChildRow()-1 ; i>=0 ; i--) {
           // Solve the i-th diagonal system
-          me()->get(i, i)->solveUpperTriangularLeft(b->get(i,k), unitriangular, lowerStored, mainOp);
+          me()->get(i, i)->solveUpperTriangularLeftH(b->get(i,k), unitriangular, lowerStored, mainOp);
           // Update b[j,k] j<i with the contribution of the solutions just computed b[i,k]
           for (int j=0 ; j<i ; j++) {
+            // u_ji contient la transposée non conjuguée à ce stade (or on veut la transconjuguée)
             const Mat* u_ji = (lowerStored ? me()->get(i, j) : me()->get(j, i));
-            b->get(j,k)->gemm(lowerStored ? 'T' : 'N', 'N', Constants<T>::mone, u_ji, b->get(i,k),
+            b->get(j,k)->gemm(lowerStored ? Constants<T>::transconj : 'N', 'N', Constants<T>::mone, u_ji, b->get(i,k),
                               Constants<T>::pone, mainOp);
           }
         }
@@ -496,10 +496,10 @@ namespace hmat {
       //  [ ----+---- ] *  [ X11 | X12 ] = [ b11 | b12 ]
       //  [  0  | U22 ]    [     |     ]   [     |     ]
       for (int k=0 ; k<b->nrChildCol() ; k++) // loop on the column of b
-        me()->recursiveSolveUpperTriangularLeft(b->get(0,k), unitriangular, lowerStored);
+        me()->recursiveSolveUpperTriangularLeftH(b->get(0,k), unitriangular, lowerStored);
 
     } else {
-      HMAT_ASSERT_MSG(false, "RecursionMatrix<T, Mat>::recursiveSolveUpperTriangularLeft: case not yet handled "
+      HMAT_ASSERT_MSG(false, "RecursionMatrix<T, Mat>::recursiveSolveUpperTriangularLeftH: case not yet handled "
                              "Nr Child A[%d, %d] b[%d, %d] "
                              "Dimensions A=%s b=%s",
                       me()->nrChildRow(), me()->nrChildCol(), b->nrChildRow(), b->nrChildCol(),
