@@ -369,6 +369,7 @@ hmat_add_example(c-cylinder c-cylinder.c)
 hmat_add_example(c-simple-cylinder c-simple-cylinder.c)
 hmat_add_example(c-simple-kriging c-simple-kriging.c)
 hmat_add_example(c-cholesky c-cholesky.c)
+hmat_add_example(chol chol.cpp)
 
 if (BUILD_EXAMPLES)
   enable_testing ()

@@ -1787,6 +1787,7 @@ void HMatrix<T>::solveUpperTriangularRight(HMatrix<T>* b, bool unitriangular, bo
 template<typename T>
 void HMatrix<T>::solveUpperTriangularRightH(HMatrix<T>* b, bool unitriangular, bool lowerStored) const {
   DECLARE_CONTEXT;
+  HMAT_ASSERT_MSG(false,"solveUpperTriangularRightH not implemented");
   if (rows()->size() == 0 || cols()->size() == 0) return;
   // The recursion one (simple case)
   if (!this->isLeaf() && !b->isLeaf()) {

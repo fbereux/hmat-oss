@@ -130,6 +130,54 @@ namespace hmat {
   }
 
   template<typename T, typename Mat>
+  void RecursionMatrix<T, Mat>::recursiveSolveUpperTriangularRightH(Mat* b, bool unitriangular, bool lowerStored) const {
+
+    //  Backward substitution:
+    //  [ X11 | X12 ]    [ U11 | U12 ]   [ b11 | b12 ]
+    //  [ ----+---- ] *  [-----+-----] = [ ----+---- ]
+    //  [ X21 | X22 ]    [  0  | U22 ]   [ b21 | b22 ]
+    //
+    //  X11 * U11 = b11 (by recursive backward substitution)
+    //  X21 * U11 = b21 (by recursive backward substitution)
+    //  X11 * U12 + X12 * U22 = b12 (backward substitution of X12*U22=b12-X11*U12)
+    //  X21 * U12 + X22 * U22 = b22 (backward substitution of X22*U22=b22-X21*U12)
+    // X and b are not necessarily square
+
+    // First we handle the general case, where dimensions (in terms of number of children) are compatible
+    HMAT_ASSERT_MSG(false, "recursiveSolveUpperTriangularRightH not implemented");
+    if (me()->nrChildRow() == b->nrChildCol()) {
+
+      for (int k=0 ; k<b->nrChildRow() ; k++) // loop on the lines of b
+        for (int i=0 ; i<me()->nrChildRow() ; i++) {
+          // Update b[k,i] with the contribution of the solutions already computed b[k,j] j<i
+          if (!b->get(k, i)) continue;
+          for (int j=0 ; j<i ; j++)
+            if (b->get(k, j) && (lowerStored ? me()->get(i,j) : me()->get(j,i)))
+              b->get(k, i)->gemm('N', lowerStored ? 'T' : 'N', Constants<T>::mone, b->get(k, j), lowerStored ? me()->get(i,j) : me()->get(j,i), Constants<T>::pone);
+          // Solve the i-th diagonal system
+          me()->get(i, i)->solveUpperTriangularRightH(b->get(k,i), unitriangular, lowerStored);
+        }
+
+    } else if (me()->nrChildRow()>1 && b->nrChildCol()==1 && b->nrChildRow()>1) {
+      // Then we handle the specific case where me() is divided in rows, and b is not divided in cols: we recurse on b's children only
+      //  [    X11    ]   [ U11 | U12 ]   [    b11    ]
+      //  [ --------- ] * [ ----+---- ] = [ --------- ]
+      //  [    X21    ]   [  0  | U22 ]   [    b21    ]
+      for (int k=0 ; k<b->nrChildRow() ; k++) // loop on the rows of b
+        me()->recursiveSolveUpperTriangularRightH(b->get(k,0), unitriangular, lowerStored);
+
+    } else {
+      HMAT_ASSERT_MSG(false, "RecursionMatrix<T, Mat>::recursiveSolveUpperTriangularRight: case not yet handled "
+                             "Nr Child A[%d, %d] b[%d, %d] "
+                             "Dimensions A=%s b=%s",
+                      me()->nrChildRow(), me()->nrChildCol(), b->nrChildRow(), b->nrChildCol(),
+                      me()->description().c_str(), b->description().c_str());
+
+    }
+
+  }
+
+  template<typename T, typename Mat>
   void RecursionMatrix<T, Mat>::recursiveMdmtProduct(const Mat* m, const Mat* d) {
 
     //
