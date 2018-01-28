@@ -188,7 +188,7 @@ public:
     \param x B on entry, the solution on exit.
    */
   void solveUpperTriangularRight(ScalarArray<T>* x, bool unitriangular, bool lowerStored) const;
-  void solveUpperTriangularRightH(ScalarArray<T>* x, bool unitriangular, bool lowerStored) const;
+  void solveUpperTriangularRightHerm(ScalarArray<T>* x, bool unitriangular, bool lowerStored) const;
   /*! \brief Solve the system U X = B, with B = X on entry, and U = this.
 
     This function requires the matrix to be factored by
@@ -197,7 +197,7 @@ public:
     \param x B on entry, the solution on exit.
    */
   void solveUpperTriangularLeft(ScalarArray<T>* x, bool unitriangular, bool lowerStored) const;
-  void solveUpperTriangularLeftH(ScalarArray<T>* x, bool unitriangular, bool lowerStored) const;
+  void solveUpperTriangularLeftHerm(ScalarArray<T>* x, bool unitriangular, bool lowerStored) const;
   /*! \brief Solve the system U X = B, with B = X on entry, and U = this.
 
     This function requires the matrix to be factored by

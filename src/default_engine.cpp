@@ -114,10 +114,14 @@ ClusterTree* createClusterTree(const DofCoordinates& dls, const ClusteringAlgori
 
 template<typename T>
 void DefaultEngine<T>::assembly(Assembly<T>& f, SymmetryFlag sym, bool ownAssembly) {
-  if (sym == kLowerSymmetric || hmat->isLower || hmat->isUpper) {
-    hmat->assembleSymmetric(f, NULL, hmat->isLower || hmat->isUpper);
+  if (sym == kLowerHermitian) {
+    hmat->assembleSymmetric(f, NULL, hmat->isLower);
   } else {
-    hmat->assemble(f);
+    if (sym == kLowerSymmetric || hmat->isLower || hmat->isUpper) {
+      hmat->assembleSymmetric(f, NULL, hmat->isLower || hmat->isUpper);
+    } else {
+      hmat->assemble(f);
+    }
   }
   if(ownAssembly)
       delete &f;

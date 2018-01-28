@@ -136,7 +136,7 @@ HMatrix<T>::HMatrix(ClusterTree* _rows, ClusterTree* _cols, const hmat::MatrixSe
     assert(split.first || split.second);
     keepSameRows = !split.first;
     keepSameCols = !split.second;
-    isLower = (symFlag == kLowerSymmetric ? true : false);
+    isLower = (symFlag == (kLowerSymmetric||kLowerHermitian) ? true : false);
     for (int i = 0; i < nrChildRow(); ++i) {
       // Don't recurse on rows if splitRowsCols() told us not to.
       ClusterTree* rowChild = const_cast<ClusterTree*>((keepSameRows ? rows_ : rows_->getChild(i)));
@@ -313,6 +313,7 @@ void HMatrix<T>::assemble(Assembly<T>& f, const AllocationObserver & ao) {
 template<typename T>
 void HMatrix<T>::assembleSymmetric(Assembly<T>& f,
    HMatrix<T>* upper, bool onlyLower, const AllocationObserver & ao) {
+    // for Hermitian assembly : on doit avoir en entrée : onlyLower == true
   if (!onlyLower) {
     if (!upper){
       upper = this;
@@ -325,6 +326,7 @@ void HMatrix<T>::assembleSymmetric(Assembly<T>& f,
     // If the leaf is admissible, matrix assembly and compression.
     // if not we keep the matrix.
     this->assemble(f, ao);
+
     if (isRkMatrix()) {
       if ((!onlyLower) && (upper != this)) {
         // Admissible leaf: a matrix represented by AB^t is transposed by exchanging A and B.
@@ -1785,19 +1787,19 @@ void HMatrix<T>::solveUpperTriangularRight(HMatrix<T>* b, bool unitriangular, bo
 }
 
 template<typename T>
-void HMatrix<T>::solveUpperTriangularRightH(HMatrix<T>* b, bool unitriangular, bool lowerStored) const {
+void HMatrix<T>::solveUpperTriangularRightHerm(HMatrix<T>* b, bool unitriangular, bool lowerStored) const {
   DECLARE_CONTEXT;
-  HMAT_ASSERT_MSG(false,"solveUpperTriangularRightH not implemented");
+  //HMAT_ASSERT_MSG(false,"solveUpperTriangularRightHerm not implemented");
   if (rows()->size() == 0 || cols()->size() == 0) return;
   // The recursion one (simple case)
   if (!this->isLeaf() && !b->isLeaf()) {
-    this->recursiveSolveUpperTriangularRightH(b, unitriangular, lowerStored);
+    this->recursiveSolveUpperTriangularRightHerm(b, unitriangular, lowerStored);
   } else {
     // if B is a leaf, the resolve is done by row
     if (b->isLeaf()) {
       if (b->isFullMatrix()) {
         b->full()->transpose();
-        this->solveUpperTriangularRightH(b->full(), unitriangular, lowerStored);
+        this->solveUpperTriangularRightHerm(b->full(), unitriangular, lowerStored);
         b->full()->transpose();
       } else if(!b->isNull() && b->isRkMatrix()){
         // Xa Xb^t U = Ba Bb^t
@@ -1810,7 +1812,7 @@ void HMatrix<T>::solveUpperTriangularRightH(HMatrix<T>* b, bool unitriangular, b
             tmp = b;
         else
             tmp = b->subset(b->rows(), this->rows());
-        this->solveUpperTriangularRightH(tmp->rk()->b, unitriangular, lowerStored);
+        this->solveUpperTriangularRightHerm(tmp->rk()->b, unitriangular, lowerStored);
         if(tmp != b)
             delete tmp;
       } else {
@@ -1825,7 +1827,7 @@ void HMatrix<T>::solveUpperTriangularRightH(HMatrix<T>* b, bool unitriangular, b
       FullMatrix<T>* bFull = new FullMatrix<T>(b->rows(), b->cols());
       b->evalPart(bFull, b->rows(), b->cols());
       bFull->transpose();
-      this->solveUpperTriangularRightH(bFull, unitriangular, lowerStored);
+      this->solveUpperTriangularRightHerm(bFull, unitriangular, lowerStored);
       bFull->transpose();
       // int bRows = b->rows()->size();
       // int bCols = b->cols()->size();
@@ -1883,21 +1885,21 @@ void HMatrix<T>::solveUpperTriangularLeft(HMatrix<T>* b, bool unitriangular, boo
 /* Resolve L^H.X=B, solution saved in B, with B Hmat
  */
 template<typename T>
-void HMatrix<T>::solveUpperTriangularLeftH(HMatrix<T>* b, bool unitriangular, bool lowerStored, MainOp) const {
+void HMatrix<T>::solveUpperTriangularLeftHerm(HMatrix<T>* b, bool unitriangular, bool lowerStored, MainOp) const {
   DECLARE_CONTEXT;
   if (rows()->size() == 0 || cols()->size() == 0) return;
   // At first, the recursion one (simple case)
   if (!this->isLeaf() && !b->isLeaf()) {
-    this->recursiveSolveUpperTriangularLeftH(b, unitriangular, lowerStored);
+    this->recursiveSolveUpperTriangularLeftHerm(b, unitriangular, lowerStored);
   } else {
     // if B is a leaf, the resolve is done by column
     if (b->isLeaf()) {
       HMatrix * bSubset = b->subset(lowerStored ? this->rows() : this->cols(), b->cols());
       if (bSubset->isFullMatrix()) {
-        this->solveUpperTriangularLeftH(bSubset->full(), unitriangular, lowerStored);
+        this->solveUpperTriangularLeftHerm(bSubset->full(), unitriangular, lowerStored);
       } else if(!bSubset->isNull()){
         assert(b->isRkMatrix());
-        this->solveUpperTriangularLeftH(bSubset->rk()->a, unitriangular, lowerStored);
+        this->solveUpperTriangularLeftHerm(bSubset->rk()->a, unitriangular, lowerStored);
       }
       if(b != bSubset)
           delete bSubset;
@@ -1908,7 +1910,7 @@ void HMatrix<T>::solveUpperTriangularLeftH(HMatrix<T>* b, bool unitriangular, bo
       // TODO: check if it's not too bad
       FullMatrix<T>* bFull = new FullMatrix<T>(b->rows(), b->cols());
       b->evalPart(bFull, b->rows(), b->cols());
-      this->solveUpperTriangularLeftH(bFull, unitriangular, lowerStored);
+      this->solveUpperTriangularLeftHerm(bFull, unitriangular, lowerStored);
       b->clear();
       b->axpy(Constants<T>::pone, bFull);
       delete bFull;
@@ -1957,14 +1959,15 @@ void HMatrix<T>::solveUpperTriangularRight(FullMatrix<T>* b, bool unitriangular,
   solveUpperTriangularRight(&b->data, unitriangular, lowerStored);
 }
 
-// FIXME : TODO
 template<typename T>
-void HMatrix<T>::solveUpperTriangularRightH(ScalarArray<T>* b, bool unitriangular, bool lowerStored) const {
+void HMatrix<T>::solveUpperTriangularRightHerm(ScalarArray<T>* b, bool unitriangular, bool lowerStored) const {
   DECLARE_CONTEXT;
   assert(*rows() == *cols());
   if (rows()->size() == 0 || cols()->size() == 0) return;
   // B is supposed given in form of a row vector, but transposed
   // so we can deal it with a subset as usual.
+  //HMAT_ASSERT_MSG(false, "solveUpperTriangularRightHerm not implemented");
+  std::cout << "FIXME : solveUpperTriangularRightHerm not implemented in complex arithmetic" << std::endl;
   if (this->isLeaf()) {
     assert(this->isFullMatrix());
     ScalarArray<T>* bCopy = b->copyAndTranspose();
@@ -1995,8 +1998,8 @@ void HMatrix<T>::solveUpperTriangularRightH(ScalarArray<T>* b, bool unitriangula
 }
 
 template<typename T>
-void HMatrix<T>::solveUpperTriangularRightH(FullMatrix<T>* b, bool unitriangular, bool lowerStored) const {
-  solveUpperTriangularRightH(&b->data, unitriangular, lowerStored);
+void HMatrix<T>::solveUpperTriangularRightHerm(FullMatrix<T>* b, bool unitriangular, bool lowerStored) const {
+  solveUpperTriangularRightHerm(&b->data, unitriangular, lowerStored);
 }
 
 template<typename T>
@@ -2036,14 +2039,14 @@ void HMatrix<T>::solveUpperTriangularLeft(FullMatrix<T>* b, bool unitriangular, 
 }
 
 template<typename T>
-void HMatrix<T>::solveUpperTriangularLeftH(ScalarArray<T>* b, bool unitriangular, bool lowerStored) const {
+void HMatrix<T>::solveUpperTriangularLeftHerm(ScalarArray<T>* b, bool unitriangular, bool lowerStored) const {
   DECLARE_CONTEXT;
   assert(*rows() == *cols());
   assert(rows()->size() == b->rows || !lowerStored);
   assert(cols()->size() == b->rows || lowerStored);
   if (rows()->size() == 0 || cols()->size() == 0) return;
   if (this->isLeaf()) {
-    full()->solveUpperTriangularLeftH(b, unitriangular, lowerStored);
+    full()->solveUpperTriangularLeftHerm(b, unitriangular, lowerStored);
   } else {
 
     int offset(0);
@@ -2055,7 +2058,7 @@ void HMatrix<T>::solveUpperTriangularLeftH(ScalarArray<T>* b, bool unitriangular
     }
     for (int i=nrChildRow()-1 ; i>=0 ; i--) {
       // Solve the i-th diagonal system
-      get(i, i)->solveUpperTriangularLeftH(&sub[i], unitriangular, lowerStored);
+      get(i, i)->solveUpperTriangularLeftHerm(&sub[i], unitriangular, lowerStored);
       // Update sub[j] j<i with the contribution of the solutions just computed sub[i]
       for (int j=0 ; j<i ; j++) {
         const HMatrix<T>* u_ji = (lowerStored ? get(i, j) : get(j, i));
@@ -2067,8 +2070,8 @@ void HMatrix<T>::solveUpperTriangularLeftH(ScalarArray<T>* b, bool unitriangular
 }
 
 template<typename T>
-void HMatrix<T>::solveUpperTriangularLeftH(FullMatrix<T>* b, bool unitriangular, bool lowerStored) const {
-  solveUpperTriangularLeftH(&b->data, unitriangular, lowerStored);
+void HMatrix<T>::solveUpperTriangularLeftHerm(FullMatrix<T>* b, bool unitriangular, bool lowerStored) const {
+  solveUpperTriangularLeftHerm(&b->data, unitriangular, lowerStored);
 }
 
 template<typename T> void HMatrix<T>::lltDecomposition(hmat_progress_t * progress) {
@@ -2381,7 +2384,7 @@ template<typename T> void HMatrix<T>::solve(
         /* Solve LX=B, result in B */
         this->solveLowerTriangularLeft(b, false);
         /* Solve L^hX=B, result in B */
-        this->solveUpperTriangularLeftH(b, false, true);
+        this->solveUpperTriangularLeftHerm(b, false, true);
         break;
     default:
         HMAT_ASSERT(false);
@@ -2460,7 +2463,7 @@ void HMatrix<T>::solveChol(ScalarArray<T>* b) const {
   this->solveLowerTriangularLeft(b, false);
 
   // B <- solution of L^H X = B :  the solution X we are looking for is stored in B
-  this->solveUpperTriangularLeftH(b, false, true);
+  this->solveUpperTriangularLeftHerm(b, false, true);
 }
 
 template<typename T>

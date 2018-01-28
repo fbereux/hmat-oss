@@ -162,7 +162,7 @@ public:
 
       @param _rows The row ClusterTree instance, built with \a createClusterTree()
       @param _cols The column ClusterTree instance, built with \a createClusterTree()
-      @param symmetric If kLowerSymmetric, only lower triangular structure is created
+      @param symmetric If kLowerSymmetric or kLowerHermitian, only lower triangular structure is created
       @return a new HMatInterface instance.
    */
 
@@ -182,7 +182,7 @@ public:
       when \a HMatSettings::recompress is true.
 
       @param f The assembly function used to compute various matrix sub-parts
-      @param sym If kLowerSymmetric, compute only the lower triangular matrix, and transpose
+      @param sym If kLowerSymmetric or kLowerHermitian, compute only the lower triangular matrix, and transpose
                  block to store upper counterpart.
       @param s: deprecated parameter
       @param ownAssembly true if &f should be deleted by the assemble function
@@ -191,12 +191,12 @@ public:
                 hmat_progress_t * progress = DefaultProgress::getInstance(),
                 bool ownAssembly=false);
 
-  /** Compute a \f$LU\f$ or \f$LDL^T\f$ decomposition of the HMatrix, in place.
+  /** Compute a \f$LU\f$ or \f$LDL^T\f$ or Cholesky decomposition of the HMatrix, in place.
 
-      An LDL^T decomposition is done if the HMatrix is symmetric and has been
-      assembled as such (with sym = kLowerSymmetric in
-      HMatInterface<T>::assemble()), and if HMatSettings::useLdlt is
-      true. Otherwise an LU decomposition is done.
+      An LDL^T (resp. Cholesky) decomposition is done if the HMatrix is symmetric (resp. Hermitian) and has been
+      assembled as such (with sym = kLowerSymmetric (resp. kLowerHermitian) in
+      HMatInterface<T>::assemble()), and if hmat_factorization_t = hmat_factorization_ldlt (resp.hmat_factorization_chol ).
+      Otherwise an LU decomposition is done.
    */
   void factorize(hmat_factorization_t, hmat_progress_t * progress = DefaultProgress::getInstance());
 

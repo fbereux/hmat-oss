@@ -417,7 +417,7 @@ void FullMatrix<T>::solveUpperTriangularRight(ScalarArray<T>* x, bool unitriangu
 }
 
 template<typename T>
-void FullMatrix<T>::solveUpperTriangularRightH(ScalarArray<T>* x, bool unitriangular, bool lowerStored) const {
+void FullMatrix<T>::solveUpperTriangularRightHerm(ScalarArray<T>* x, bool unitriangular, bool lowerStored) const {
   // Void matrix
   if (x->rows == 0 || x->cols == 0) return;
 
@@ -447,7 +447,7 @@ void FullMatrix<T>::solveUpperTriangularLeft(ScalarArray<T>* x, bool unitriangul
 }
 
 template<typename T>
-void FullMatrix<T>::solveUpperTriangularLeftH(ScalarArray<T>* x, bool unitriangular, bool lowerStored) const {
+void FullMatrix<T>::solveUpperTriangularLeftHerm(ScalarArray<T>* x, bool unitriangular, bool lowerStored) const {
   // Void matrix
   if (x->rows == 0 || x->cols == 0) return;
 

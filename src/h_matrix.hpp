@@ -52,7 +52,7 @@ template<typename T> class RkMatrix;
 
 /** Flag used to describe the symmetry of a matrix.
  */
-enum SymmetryFlag {kNotSymmetric, kLowerSymmetric};
+enum SymmetryFlag {kNotSymmetric, kLowerSymmetric, kLowerHermitian};
 
 /** Default rank value for blocks that dont have an actual computed rank
    */
@@ -453,13 +453,13 @@ public:
     \param b la matrice B en entree, X en sortie
    */
   void solveUpperTriangularRight(HMatrix<T>* b, bool unitriangular, bool lowerStored) const;
-  void solveUpperTriangularRightH(HMatrix<T>* b, bool unitriangular, bool lowerStored) const;
+  void solveUpperTriangularRightHerm(HMatrix<T>* b, bool unitriangular, bool lowerStored) const;
   /*! Resolution de U X = B, avec U = this, et X = B.
 
     \param b la matrice B en entree, X en sortie
    */
   void solveUpperTriangularLeft(HMatrix<T>* b, bool unitriangular, bool lowerStored, MainOp=MainOp_Other) const;
-  void solveUpperTriangularLeftH(HMatrix<T>* b, bool unitriangular, bool lowerStored, MainOp=MainOp_Other) const;
+  void solveUpperTriangularLeftHerm(HMatrix<T>* b, bool unitriangular, bool lowerStored, MainOp=MainOp_Other) const;
   /*! Resolution de x U = b, avec U = this, et x = b.
 
     \warning b est un vecteur ligne et non colonne.
@@ -468,8 +468,8 @@ public:
    */
   void solveUpperTriangularRight(ScalarArray<T>* b, bool unitriangular, bool lowerStored) const;
   void solveUpperTriangularRight(FullMatrix<T>* b, bool unitriangular, bool lowerStored) const;
-  void solveUpperTriangularRightH(ScalarArray<T>* b, bool unitriangular, bool lowerStored) const;
-  void solveUpperTriangularRightH(FullMatrix<T>* b, bool unitriangular, bool lowerStored) const;
+  void solveUpperTriangularRightHerm(ScalarArray<T>* b, bool unitriangular, bool lowerStored) const;
+  void solveUpperTriangularRightHerm(FullMatrix<T>* b, bool unitriangular, bool lowerStored) const;
   /*! Resolution de U x = b, avec U = this, et x = b.
     U peut etre en fait L^T (ou bien L^H) ou L est une matrice stockee inferieurement
     en precisant lowerStored = true
@@ -480,8 +480,8 @@ public:
   */
   void solveUpperTriangularLeft(ScalarArray<T>* b, bool unitriangular, bool lowerStored) const;
   void solveUpperTriangularLeft(FullMatrix<T>* b, bool unitriangular, bool lowerStored) const;
-  void solveUpperTriangularLeftH(ScalarArray<T>* b, bool unitriangular, bool lowerStored) const;
-  void solveUpperTriangularLeftH(FullMatrix<T>* b, bool unitriangular, bool lowerStored) const;
+  void solveUpperTriangularLeftHerm(ScalarArray<T>* b, bool unitriangular, bool lowerStored) const;
+  void solveUpperTriangularLeftHerm(FullMatrix<T>* b, bool unitriangular, bool lowerStored) const;
   /*! Solve D x = b, in place with D a diagonal matrix.
 
      \param b Input: B, Output: X

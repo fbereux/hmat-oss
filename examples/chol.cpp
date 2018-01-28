@@ -127,13 +127,13 @@ template<typename T, template<typename> class E> struct Configuration
     void configure(HMatInterface<T,E> &){}
 };
 
-hmat::StandardAdmissibilityCondition admissibilityCondition(3.);
 
 template<typename T, template<typename> class E>
-void go(const DofCoordinates& coord, double epsilon) {
+void go(const DofCoordinates& coord, double eta) {
   if (0 != HMatInterface<T, E>::init())
     return;
   {
+    hmat::StandardAdmissibilityCondition admissibilityCondition(eta);
     //bool use_symmetry = false;
     bool use_symmetry = true;
     ClusterTree* ct = createClusterTree(coord);
@@ -141,14 +141,14 @@ void go(const DofCoordinates& coord, double epsilon) {
     TestAssemblyFunction<T> f(coord);
     HMatInterface<T, E>* hmat = nullptr;
     if (use_symmetry) {
-      hmat = new HMatInterface<T, E>(ct, ct, kLowerSymmetric, &admissibilityCondition);
+      hmat = new HMatInterface<T, E>(ct, ct, kLowerHermitian, &admissibilityCondition);
     } else {
       hmat = new HMatInterface<T, E>(ct, ct, kNotSymmetric, &admissibilityCondition);
     }
     std::cout << "HMatrix node count = " << hmat->nodesCount() << std::endl;
     Configuration<T, E>().configure(*hmat);
     if (use_symmetry) {
-      hmat->assemble(f, kLowerSymmetric);
+      hmat->assemble(f, kLowerHermitian);
       hmat->factorize(hmat_factorization_chol);
     } else {
       hmat->assemble(f, kNotSymmetric);
@@ -187,19 +187,19 @@ void go(const DofCoordinates& coord, double epsilon) {
 }
 
 template<template<typename> class E>
-void goA(char arithmetic, const DofCoordinates& coord, double epsilon) {
+void goA(char arithmetic, const DofCoordinates& coord, double eta) {
     switch (arithmetic) {
     case 'S':
-        go<S_t, E>(coord, epsilon);
+        go<S_t, E>(coord, eta);
         break;
     case 'D':
-        go<D_t, E>(coord, epsilon);
+        go<D_t, E>(coord, eta);
         break;
     case 'C':
-        go<C_t, E>(coord, epsilon);
+        go<C_t, E>(coord, eta);
         break;
     case 'Z':
-        go<Z_t, E>(coord, epsilon);
+        go<Z_t, E>(coord, eta);
         break;
     default:
       std::cerr << "Unknown arithmetic code " << arithmetic << std::endl;
@@ -210,25 +210,25 @@ int main(int argc, char **argv) {
   HMatSettings& settings     = HMatSettings::getInstance();
   settings.maxParallelLeaves = 10000;
 
-  if (argc != 3 && argc != 4) {
-    std::cout << "Usage: " << argv[0] << " n_points (S|D|C|Z) [epsilon]"
+  if (argc != 5) {
+    std::cout << "Usage: " << argv[0] << " n (S|D|C|Z) epsilon eta"
               << std::endl;
     return 0;
   }
   int n           = atoi(argv[1]);
   char arithmetic = argv[2][0];
-  double epsilon  =  0.0;
-  if(argc == 4 ) {
-    epsilon = atof(argv[3]);
-  }
+  double epsilon  = atof(argv[3]);
+  double eta      = atof(argv[4]);
 
-  settings.compressionMethod = AcaPlus;
-  if(epsilon != 0.0) {
-    settings.assemblyEpsilon = epsilon;
-    settings.recompressionEpsilon = epsilon;
-  }
+  settings.compressionMethod      = AcaPlus;
+  settings.assemblyEpsilon        = epsilon;
+  settings.recompressionEpsilon   = epsilon;
+  settings.compressionMinLeafSize = 10;
+  settings.maxLeafSize            = 10;
+
   settings.setParameters();
   settings.printSettings();
+
   double * x = new double[n];
   for(size_t i = 0; i < n; ++i)
   {
@@ -237,6 +237,6 @@ int main(int argc, char **argv) {
   DofCoordinates coord(x, 1, n, true);
   std::cout << "done.\n";
 
-  goA<DefaultEngine>(arithmetic, coord, epsilon);
+  goA<DefaultEngine>(arithmetic, coord, eta);
   return 0;
 }
