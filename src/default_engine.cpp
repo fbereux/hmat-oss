@@ -141,6 +141,7 @@ void DefaultEngine<T>::factorization(hmat_factorization_t t) {
       hmat->lltDecomposition(progress_);
       break;
   case hmat_factorization_chol:
+      std::cout << "default_engine : enter cholDecomposition" << std::endl;
       hmat->cholDecomposition(progress_);
       break;
   default:

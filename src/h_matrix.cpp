@@ -136,7 +136,11 @@ HMatrix<T>::HMatrix(ClusterTree* _rows, ClusterTree* _cols, const hmat::MatrixSe
     assert(split.first || split.second);
     keepSameRows = !split.first;
     keepSameCols = !split.second;
-    isLower = (symFlag == (kLowerSymmetric||kLowerHermitian) ? true : false);
+    if (kLowerSymmetric||kLowerHermitian) {
+        isLower = true;
+    } else {
+        isLower = false;
+    }
     for (int i = 0; i < nrChildRow(); ++i) {
       // Don't recurse on rows if splitRowsCols() told us not to.
       ClusterTree* rowChild = const_cast<ClusterTree*>((keepSameRows ? rows_ : rows_->getChild(i)));
@@ -1799,6 +1803,7 @@ void HMatrix<T>::solveUpperTriangularRightHerm(HMatrix<T>* b, bool unitriangular
     if (b->isLeaf()) {
       if (b->isFullMatrix()) {
         b->full()->transpose();
+        // appel à la version où b est une full matrix
         this->solveUpperTriangularRightHerm(b->full(), unitriangular, lowerStored);
         b->full()->transpose();
       } else if(!b->isNull() && b->isRkMatrix()){
@@ -1971,7 +1976,7 @@ void HMatrix<T>::solveUpperTriangularRightHerm(ScalarArray<T>* b, bool unitriang
   if (this->isLeaf()) {
     assert(this->isFullMatrix());
     ScalarArray<T>* bCopy = b->copyAndTranspose();
-    full()->solveUpperTriangularRight(bCopy, unitriangular, lowerStored);
+    full()->solveUpperTriangularRightHerm(bCopy, unitriangular, lowerStored);
     bCopy->transpose();
     b->copyMatrixAtOffset(bCopy, 0, 0);
     delete bCopy;
@@ -1992,7 +1997,7 @@ void HMatrix<T>::solveUpperTriangularRightHerm(ScalarArray<T>* b, bool unitriang
           u_ji->gemv(lowerStored ? 'N' : 'T', Constants<T>::mone, &sub[j], Constants<T>::pone, &sub[i]);
       }
       // Solve the i-th diagonal system
-      get(i, i)->solveUpperTriangularRight(&sub[i], unitriangular, lowerStored);
+      get(i, i)->solveUpperTriangularRightHerm(&sub[i], unitriangular, lowerStored);
     }
   }
 }
@@ -2099,6 +2104,7 @@ template<typename T> void HMatrix<T>::cholDecomposition(hmat_progress_t * progre
     if (isVoid()) {
         // nothing to do
     } else if(this->isLeaf()) {
+        std::cout << "h_matrix : factor leaf" << std::endl;
         full()->cholDecomposition();
         if(progress != NULL) {
             progress->current= rows()->offset() + rows()->size();

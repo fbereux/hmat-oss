@@ -438,6 +438,7 @@ namespace hmat {
     //   - We use "solve" to compute the rest of the column 'k'
     //   - We update the rest of the matrix [k+1, .., n]x[k+1, .., n] (below diag)
 
+    std::cout << "recursiveCholDecomposition" << std::endl;
     HMAT_ASSERT_MSG(me()->nrChildRow()==me()->nrChildCol(),
                     "RecursionMatrix<T, Mat>::recursiveCholDecomposition: case not allowed "
                     "Nr Child A[%d, %d] Dimensions A=%s ",
@@ -445,15 +446,20 @@ namespace hmat {
 
     for (int k=0 ; k<me()->nrChildRow() ; k++) {
       // Hkk <- Lkk * Lkk^h
+      std::cout << "cholDecomposition k = " << k << std::endl;
       me()->get(k,k)->cholDecomposition(progress);
       // Solve the rest of column k: solve Lik Lkk^h = Hik and get Lik
-      for (int i=k+1 ; i<me()->nrChildRow() ; i++)
+      for (int i=k+1 ; i<me()->nrChildRow() ; i++) {
+        std::cout << "  solveUpperTriangularRightHerm i, k = " << i << ", " << k << std::endl;
         me()->get(k,k)->solveUpperTriangularRightHerm(me()->get(i,k), false, true);
+      }
       // update the rest of the matrix [k+1, .., n]x[k+1, .., n] (below diag)
       for (int i=k+1 ; i<me()->nrChildRow() ; i++)
-        for (int j=k+1 ; j<=i ; j++)
+        for (int j=k+1 ; j<=i ; j++) {
+          std::cout << "    gemm i, j, k = " << i << ", " << j << ", " << k << std::endl;
           // Hij <- Hij - Lik Ljk^h
           me()->get(i,j)->gemm('N', Constants<T>::transconj, Constants<T>::mone, me()->get(i,k), me()->get(j,k), Constants<T>::pone);
+      }
     }
   }
 
