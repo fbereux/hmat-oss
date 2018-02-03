@@ -643,7 +643,7 @@ template<typename T> const HMatrix<T> * HMatrix<T>::getChildForGEMM(char & t, in
   if( (isLower && j > i) ||
       (isUpper && i > j) ) {
     res = get(j, i);
-    t = t == 'N' ? 'T' : 'N';
+    t = t == 'N' ? Constants<T>::transconj : 'N';
   } else {
     res = get(i, j);
   }
@@ -1218,7 +1218,7 @@ void HMatrix<T>::gemm(char transA, char transB, T alpha, const HMatrix<T>* a, co
     const IndexSet * c = transB == 'N' ? b->cols() : b->rows();
     ScalarArray<T> cSubset(rk()->b->rowsSubset( c->offset() -    cols()->offset(), c->size()));
     ScalarArray<T> aSubset(a->rk()->b->rowsSubset( r->offset() - a->cols()->offset(), r->size()));
-    b->gemv(transB == 'N' ? 'T' : 'N', alpha, &aSubset, beta, &cSubset);
+    b->gemv(transB == 'N' ? Constants<T>::transconj : 'N', alpha, &aSubset, beta, &cSubset);
     return;
   }
 

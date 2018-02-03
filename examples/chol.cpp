@@ -13,6 +13,7 @@ class TestAssemblyFunction : public SimpleAssemblyFunction<T> {
 public:
   /// Point coordinates
   const DofCoordinates& points;
+  const char sym;
 
 public:
   /** Constructor.
@@ -20,8 +21,8 @@ public:
       \param _points Point cloud
       \param _k Wavenumber
    */
-  TestAssemblyFunction(const DofCoordinates& _points)
-    : SimpleAssemblyFunction<T>(), points(_points) {}
+  TestAssemblyFunction(const DofCoordinates& _points, const char _sym)
+    : SimpleAssemblyFunction<T>(), points(_points), sym(_sym) {}
   typename Types<T>::dp interaction(int i, int j) const;
   double distanceTo(int i, int j) const;
   double diffTo(int i, int j) const;
@@ -55,16 +56,38 @@ Types<D_t>::dp TestAssemblyFunction<D_t>::interaction(int i, int j) const {
 template<>
 Types<C_t>::dp TestAssemblyFunction<C_t>::interaction(int i, int j) const {
   double distance = this->distanceTo(i, j) + 1.0;
-  double diff = this->diffTo(i, j); // to have hermitian symmetry
-  //double diff = std::abs(this->diffTo(i, j)); // to have symmetry but not hermitian
+  double diff     = 0;
+  switch (this->sym) {
+    case 'N' :
+    case 'H' :
+      diff = this->diffTo(i, j); // to have hermitian symmetry
+      break;
+    case 'S' :
+      diff = std::abs(this->diffTo(i, j)); // to have symmetry but not hermitian
+      break;
+    default :
+      std::cerr << "Unknown symmetry type " << this->sym << std::endl;
+      exit(1);
+  }
   Z_t result(cos(diff)/distance, sin(diff)/distance);
   return result;
 }
 template<>
 Types<Z_t>::dp TestAssemblyFunction<Z_t>::interaction(int i, int j) const {
   double distance = this->distanceTo(i, j) + 1.0;
-  double diff = this->diffTo(i, j); // to have hermitian symmetry
-  //double diff = std::abs(this->diffTo(i, j)); // to have symmetry but not hermitian
+  double diff     = 0;
+  switch (this->sym) {
+    case 'N' :
+    case 'H' :
+      diff = this->diffTo(i, j); // to have hermitian symmetry
+      break;
+    case 'S' :
+      diff = std::abs(this->diffTo(i, j)); // to have symmetry but not hermitian
+      break;
+    default :
+      std::cerr << "Unknown symmetry type " << this->sym << std::endl;
+      exit(1);
+  }
   Z_t result(cos(diff)/distance, sin(diff)/distance);
   return result;
 }
@@ -129,30 +152,47 @@ template<typename T, template<typename> class E> struct Configuration
 
 
 template<typename T, template<typename> class E>
-void go(const DofCoordinates& coord, double eta) {
+void go(const DofCoordinates& coord, double eta, char sym) {
   if (0 != HMatInterface<T, E>::init())
     return;
   {
     hmat::StandardAdmissibilityCondition admissibilityCondition(eta);
-    //bool use_symmetry = false;
-    bool use_symmetry = true;
     ClusterTree* ct = createClusterTree(coord);
     std::cout << "ClusterTree node count = " << ct->nodesCount() << std::endl;
-    TestAssemblyFunction<T> f(coord);
+    TestAssemblyFunction<T> f(coord, sym);
     HMatInterface<T, E>* hmat = nullptr;
-    if (use_symmetry) {
-      hmat = new HMatInterface<T, E>(ct, ct, kLowerHermitian, &admissibilityCondition);
-    } else {
+    switch (sym) {
+    case 'N':
       hmat = new HMatInterface<T, E>(ct, ct, kNotSymmetric, &admissibilityCondition);
+      break;
+    case 'S' :
+      hmat = new HMatInterface<T, E>(ct, ct, kLowerSymmetric, &admissibilityCondition);
+      break;
+    case 'H' :
+      hmat = new HMatInterface<T, E>(ct, ct, kLowerHermitian, &admissibilityCondition);
+      break;
+    default :
+      std::cerr << "Unknown symmetry type " << sym << std::endl;
+      exit(1);
     }
     std::cout << "HMatrix node count = " << hmat->nodesCount() << std::endl;
     Configuration<T, E>().configure(*hmat);
-    if (use_symmetry) {
-      hmat->assemble(f, kLowerHermitian);
-      hmat->factorize(hmat_factorization_chol);
-    } else {
+    switch (sym) {
+    case 'N':
       hmat->assemble(f, kNotSymmetric);
       hmat->factorize(hmat_factorization_lu);
+      break;
+    case 'S' :
+      hmat->assemble(f, kLowerSymmetric);
+      hmat->factorize(hmat_factorization_llt);
+      break;
+    case 'H' :
+      hmat->assemble(f, kLowerHermitian);
+      hmat->factorize(hmat_factorization_chol);
+      break;
+    default :
+      std::cerr << "Unknown symmetry type " << sym << std::endl;
+      exit(1);
     }
     hmat_info_t info;
     hmat->info(info);
@@ -174,7 +214,7 @@ void go(const DofCoordinates& coord, double eta) {
     int n = coord.size();
     for (int i = 0; i < n; i++) {
       for (int j = 0; j < n; j++) {
-	rhsCopy.get(i, 0) -= static_cast<T>(f.interaction(i, j)) * rhs->get(j, 0);
+	    rhsCopy.get(i, 0) -= static_cast<T>(f.interaction(i, j)) * rhs->get(j, 0);
       }
     }
     double diffNorm = rhsCopy.norm();
@@ -187,19 +227,19 @@ void go(const DofCoordinates& coord, double eta) {
 }
 
 template<template<typename> class E>
-void goA(char arithmetic, const DofCoordinates& coord, double eta) {
+void goA(char arithmetic, const DofCoordinates& coord, double eta, char sym) {
     switch (arithmetic) {
     case 'S':
-        go<S_t, E>(coord, eta);
+        go<S_t, E>(coord, eta, sym);
         break;
     case 'D':
-        go<D_t, E>(coord, eta);
+        go<D_t, E>(coord, eta, sym);
         break;
     case 'C':
-        go<C_t, E>(coord, eta);
+        go<C_t, E>(coord, eta, sym);
         break;
     case 'Z':
-        go<Z_t, E>(coord, eta);
+        go<Z_t, E>(coord, eta, sym);
         break;
     default:
       std::cerr << "Unknown arithmetic code " << arithmetic << std::endl;
@@ -210,8 +250,8 @@ int main(int argc, char **argv) {
   HMatSettings& settings     = HMatSettings::getInstance();
   settings.maxParallelLeaves = 10000;
 
-  if (argc != 5) {
-    std::cout << "Usage: " << argv[0] << " n (S|D|C|Z) epsilon eta"
+  if (argc != 6) {
+    std::cout << "Usage: " << argv[0] << " n (S|D|C|Z) epsilon eta (N|S|H) "
               << std::endl;
     return 0;
   }
@@ -219,6 +259,7 @@ int main(int argc, char **argv) {
   char arithmetic = argv[2][0];
   double epsilon  = atof(argv[3]);
   double eta      = atof(argv[4]);
+  char sym        = argv[5][0];
 
   settings.compressionMethod      = AcaPlus;
   settings.assemblyEpsilon        = epsilon;
@@ -237,6 +278,6 @@ int main(int argc, char **argv) {
   DofCoordinates coord(x, 1, n, true);
   std::cout << "done.\n";
 
-  goA<DefaultEngine>(arithmetic, coord, eta);
+  goA<DefaultEngine>(arithmetic, coord, eta, sym);
   return 0;
 }

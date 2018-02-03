@@ -452,6 +452,7 @@ namespace hmat {
       for (int i=k+1 ; i<me()->nrChildRow() ; i++) {
         std::cout << "  solveUpperTriangularRightHerm i, k = " << i << ", " << k << std::endl;
         me()->get(k,k)->solveUpperTriangularRightHerm(me()->get(i,k), false, true);
+        std::cout << "  done solveUpperTriangularRightHerm" << std::endl;
       }
       // update the rest of the matrix [k+1, .., n]x[k+1, .., n] (below diag)
       for (int i=k+1 ; i<me()->nrChildRow() ; i++)
@@ -459,6 +460,7 @@ namespace hmat {
           std::cout << "    gemm i, j, k = " << i << ", " << j << ", " << k << std::endl;
           // Hij <- Hij - Lik Ljk^h
           me()->get(i,j)->gemm('N', Constants<T>::transconj, Constants<T>::mone, me()->get(i,k), me()->get(j,k), Constants<T>::pone);
+          std::cout << "    done gemm" << std::endl;
       }
     }
   }
